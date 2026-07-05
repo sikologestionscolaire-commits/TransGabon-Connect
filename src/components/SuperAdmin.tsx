@@ -4,7 +4,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { 
   TrendingUp, Users, ShieldAlert, Award, ChevronRight, Activity, 
   Cpu, Plus, Trash2, Edit2, Check, X, DollarSign, MapPin, KeyRound, 
-  UserCheck, ShieldCheck 
+  UserCheck, ShieldCheck, FileText, PlusCircle 
 } from 'lucide-react';
 
 interface SuperAdminProps {
@@ -13,7 +13,7 @@ interface SuperAdminProps {
 }
 
 export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'agencies' | 'tariffs' | 'agency_users' | 'profile'>('dashboard');
+  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'agencies' | 'tariffs' | 'agency_users' | 'profile' | 'routes'>('dashboard');
   const [stats, setStats] = useState<any>(null);
   const [agencyList, setAgencyList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,6 +22,19 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
   const [tariffs, setTariffs] = useState<Tariff[]>([]);
   const [selectedAgency, setSelectedAgency] = useState<Agency | null>(null);
   const [selectedTariff, setSelectedTariff] = useState<Tariff | null>(null);
+
+  // NOUVEAUX ÉTATS POUR LA GESTION DES LIGNES/ROUTES (SUPERADMIN)
+  const [routes, setRoutes] = useState<any[]>([]);
+  const [editingRouteId, setEditingRouteId] = useState<string | null>(null);
+  const [checkpointInput, setCheckpointInput] = useState('');
+  const [routeForm, setRouteForm] = useState({
+    departure: 'Libreville',
+    arrival: '',
+    distance: 250,
+    roadCondition: 'Praticable avec nids de poule',
+    estimatedDuration: '4h',
+    checkpoints: [] as string[]
+  });
 
   // Agency Users list from server for SuperAdmin
   const [globalAgencyUsers, setGlobalAgencyUsers] = useState<any[]>([]);
@@ -69,7 +82,6 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
 
   const fetchStats = async () => {
     try {
-      // Correction de la clé : "token" au lieu de "adminToken"
       const activeToken = localStorage.getItem('token');
       if (!activeToken) return;
 
@@ -102,7 +114,6 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
 
   const fetchGlobalAgencyUsers = async () => {
     try {
-      // Correction de la clé : "token" au lieu de "adminToken"
       const activeToken = localStorage.getItem('token');
       if (!activeToken) return;
 
@@ -118,10 +129,24 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
     }
   };
 
+  // NOUVELLE FONCTION : CHARGER TOUTES LES LIGNES / ROUTES DE L'API
+  const fetchRoutes = async () => {
+    try {
+      const response = await fetch('/api/routes');
+      const data = await response.json();
+      if (data.success) {
+        setRoutes(data.data);
+      }
+    } catch (err) {
+      console.error("Erreur de récupération des lignes :", err);
+    }
+  };
+
   useEffect(() => {
     fetchStats();
     fetchTariffs();
     fetchGlobalAgencyUsers();
+    fetchRoutes(); // Charge les lignes au démarrage
     
     const interval = setInterval(fetchStats, 10000);
     return () => clearInterval(interval);
@@ -132,7 +157,6 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
   const handleCreateAgency = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // Correction de la clé : "token" au lieu de "adminToken"
       const activeToken = localStorage.getItem('token');
       const response = await fetch('/api/agencies', {
         method: 'POST',
@@ -168,7 +192,6 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
     e.preventDefault();
     if (!selectedAgency) return;
     try {
-      // Correction de la clé : "token" au lieu de "adminToken"
       const activeToken = localStorage.getItem('token');
       const response = await fetch(`/api/agencies/${selectedAgency.id}`, {
         method: 'PUT',
@@ -204,7 +227,6 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
   const handleDeleteAgency = async (id: string) => {
     if (!confirm("Voulez-vous vraiment supprimer cette agence de voyage ? Tous les voyages associés seront impactés.")) return;
     try {
-      // Correction de la clé : "token" au lieu de "adminToken"
       const activeToken = localStorage.getItem('token');
       const response = await fetch(`/api/agencies/${id}`, {
         method: 'DELETE',
@@ -245,7 +267,6 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
       return;
     }
     try {
-      // Correction de la clé : "token" au lieu de "adminToken"
       const activeToken = localStorage.getItem('token');
       const response = await fetch('/api/tariffs', {
         method: 'POST',
@@ -279,7 +300,6 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
     e.preventDefault();
     if (!selectedTariff) return;
     try {
-      // Correction de la clé : "token" au lieu de "adminToken"
       const activeToken = localStorage.getItem('token');
       const response = await fetch(`/api/tariffs/${selectedTariff.id}`, {
         method: 'PUT',
@@ -313,7 +333,6 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
   const handleDeleteTariff = async (id: string) => {
     if (!confirm("Voulez-vous vraiment supprimer ce tarif ?")) return;
     try {
-      // Correction de la clé : "token" au lieu de "adminToken"
       const activeToken = localStorage.getItem('token');
       const response = await fetch(`/api/tariffs/${id}`, { 
         method: 'DELETE',
@@ -343,11 +362,100 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
     });
   };
 
+  // --- CRUD ACTIONS POUR LES LIGNES / ROUTES ---
+  
+  const handleSaveRoute = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!routeForm.departure || !routeForm.arrival) {
+      showMsg("Le départ et la destination sont obligatoires.", "error");
+      return;
+    }
+    try {
+      const activeToken = localStorage.getItem('token');
+      const url = editingRouteId ? `/api/routes/${editingRouteId}` : '/api/routes';
+      const method = editingRouteId ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${activeToken}`
+        },
+        body: JSON.stringify(routeForm)
+      });
+      const data = await res.json();
+      if (data.success) {
+        showMsg(editingRouteId ? "Ligne nationale mise à jour !" : "Ligne nationale ajoutée avec succès !");
+        setEditingRouteId(null);
+        setRouteForm({
+          departure: 'Libreville',
+          arrival: '',
+          distance: 250,
+          roadCondition: 'Praticable avec nids de poule',
+          estimatedDuration: '4h',
+          checkpoints: []
+        });
+        fetchRoutes();
+      } else {
+        showMsg(data.message || "Erreur lors de la sauvegarde de l'itinéraire", "error");
+      }
+    } catch (err) {
+      showMsg("Erreur de connexion avec le serveur", "error");
+    }
+  };
+
+  const handleDeleteRoute = async (id: string) => {
+    if (!confirm("Voulez-vous vraiment supprimer cet itinéraire ? Tous les départs des agences sur cette ligne seront affectés.")) return;
+    try {
+      const activeToken = localStorage.getItem('token');
+      const res = await fetch(`/api/routes/${id}`, { 
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${activeToken}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        showMsg(data.message);
+        fetchRoutes();
+      } else {
+        showMsg(data.message || "Erreur de suppression", "error");
+      }
+    } catch (err) {
+      showMsg("Erreur réseau", "error");
+    }
+  };
+
+  const startEditRoute = (route: any) => {
+    setEditingRouteId(route.id);
+    setRouteForm({
+      departure: route.departure,
+      arrival: route.arrival,
+      distance: route.distance,
+      roadCondition: route.roadCondition,
+      estimatedDuration: route.estimatedDuration,
+      checkpoints: route.checkpoints || []
+    });
+  };
+
+  const addCheckpoint = () => {
+    if (!checkpointInput.trim()) return;
+    setRouteForm({
+      ...routeForm,
+      checkpoints: [...routeForm.checkpoints, checkpointInput.trim()]
+    });
+    setCheckpointInput('');
+  };
+
+  const removeCheckpoint = (index: number) => {
+    setRouteForm({
+      ...routeForm,
+      checkpoints: routeForm.checkpoints.filter((_, i) => i !== index)
+    });
+  };
+
   // --- SUPERADMIN PROFILE MODIFICATION ---
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // Correction de la clé : "token" au lieu de "adminToken"
       const activeToken = localStorage.getItem('token');
       const response = await fetch('/api/admin/profile', {
         method: 'PUT',
@@ -377,7 +485,6 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
       return;
     }
     try {
-      // Correction de la clé : "token" au lieu de "adminToken"
       const activeToken = localStorage.getItem('token');
       const response = await fetch('/api/admin/agency-users', {
         method: 'POST',
@@ -409,7 +516,6 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
   const handleDeleteAgencyUser = async (id: string) => {
     if (!confirm("Voulez-vous vraiment révoquer ce compte d'accès d'agence ?")) return;
     try {
-      // Correction de la clé : "token" au lieu de "adminToken"
       const activeToken = localStorage.getItem('token');
       const response = await fetch(`/api/admin/agency-users/${id}`, {
         method: 'DELETE',
@@ -455,7 +561,7 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
       </div>
 
       {/* Sub tabs navigation */}
-      <div className="flex flex-wrap space-x-1 bg-slate-100 p-1 rounded-2xl w-fit">
+      <div className="flex flex-wrap space-x-1 bg-slate-100 p-1 rounded-2xl w-fit gap-1">
         <button
           onClick={() => setActiveSubTab('dashboard')}
           className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
@@ -471,6 +577,14 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
           }`}
         >
           🏢 Gestion des Agences ({agencies.length})
+        </button>
+        <button
+          onClick={() => setActiveSubTab('routes')}
+          className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeSubTab === 'routes' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          📍 Lignes de Route ({routes.length})
         </button>
         <button
           onClick={() => setActiveSubTab('agency_users')}
@@ -550,30 +664,29 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
                 
                 {/* SaaS MRR GROWTH CHART */}
                 <div className="lg:col-span-8 bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3 shadow-sm text-left">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                    Croissance des Revenus Récurrents (MRR)
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                    📈 Chiffre d'Affaires & Revenus SaaS récurrents
                   </h3>
-                  
-                  <div className="h-64">
+                  <div className="h-[250px] w-full mt-4">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={saasRevenueHistory}>
                         <defs>
-                          <linearGradient id="colorSubs" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
-                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                          <linearGradient id="colorSub" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
                           </linearGradient>
-                          <linearGradient id="colorComms" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
-                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                          <linearGradient id="colorComm" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                         <XAxis dataKey="month" stroke="#64748b" fontSize={10} />
-                        <YAxis stroke="#64748b" fontSize={10} unit=" F" />
+                        <YAxis stroke="#64748b" fontSize={10} />
                         <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#cbd5e1', color: '#1e293b', fontSize: '11px' }} />
                         <Legend wrapperStyle={{ fontSize: '10px' }} />
-                        <Area type="monotone" dataKey="Subscriptions" name="Abonnements Agences" stroke="#10b981" fillOpacity={1} fill="url(#colorSubs)" />
-                        <Area type="monotone" dataKey="Commissions" name="Commissions Billets" stroke="#3b82f6" fillOpacity={1} fill="url(#colorComms)" />
+                        <Area type="monotone" dataKey="Subscriptions" name="Abonnements fixes" stroke="#4f46e5" fillOpacity={1} fill="url(#colorSubs)" />
+                        <Area type="monotone" dataKey="Commissions" name="Commissions Billetterie" stroke="#10b981" fillOpacity={1} fill="url(#colorComm)" />
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
@@ -669,10 +782,10 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
           )}
 
           {activeSubTab === 'agencies' && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in">
               {/* Form to Add / Edit */}
               <div className="lg:col-span-5 bg-slate-50 border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center text-left">
                   <Plus className="w-3.5 h-3.5 mr-1 text-emerald-500" />
                   {selectedAgency ? "Modifier l'Agence" : "Ajouter une Agence de Voyage"}
                 </h3>
@@ -832,6 +945,222 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
                           </td>
                         </tr>
                       ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* GESTION DES LIGNES NATIONALES / ROUTES (SUPERADMIN SEUL AGREE) */}
+          {activeSubTab === 'routes' && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in">
+              {/* Form to Add / Edit Route */}
+              <div className="lg:col-span-5 bg-slate-50 border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4 text-left">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center">
+                  <PlusCircle className="w-4 h-4 mr-1.5 text-emerald-500" />
+                  {editingRouteId ? "Modifier la Ligne Nationale" : "Créer une Ligne de Route Nationale"}
+                </h3>
+
+                <form onSubmit={handleSaveRoute} className="space-y-3">
+                  <div>
+                    <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">Ville de Départ *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: Libreville"
+                      value={routeForm.departure}
+                      onChange={(e) => setRouteForm({ ...routeForm, departure: e.target.value })}
+                      className="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">Ville d'Arrivée (Destination) *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: Oyem"
+                      value={routeForm.arrival}
+                      onChange={(e) => setRouteForm({ ...routeForm, arrival: e.target.value })}
+                      className="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">Distance (km)</label>
+                      <input
+                        type="number"
+                        required
+                        value={routeForm.distance}
+                        onChange={(e) => setRouteForm({ ...routeForm, distance: parseInt(e.target.value) || 0 })}
+                        className="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">Durée Estimée</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Ex: 6h"
+                        value={routeForm.estimatedDuration}
+                        onChange={(e) => setRouteForm({ ...routeForm, estimatedDuration: e.target.value })}
+                        className="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">État de la Route Nationale</label>
+                    <select
+                      value={routeForm.roadCondition}
+                      onChange={(e) => setRouteForm({ ...routeForm, roadCondition: e.target.value })}
+                      className="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs focus:outline-none"
+                    >
+                      <option value="Excellente">Excellente (Bitume neuf)</option>
+                      <option value="Praticable avec nids de poule">Praticable avec nids de poule</option>
+                      <option value="Difficile (Travaux)">Difficile (Travaux en cours)</option>
+                      <option value="Piste / Sable">Piste / Poussière rouge</option>
+                    </select>
+                  </div>
+
+                  {/* AJOUT DE CHECKPOINTS DYNAMIQUES */}
+                  <div className="border-t border-slate-200 pt-3 space-y-2">
+                    <label className="block text-[10px] uppercase font-bold text-slate-500">Points de Contrôle / Checkpoints</label>
+                    
+                    <div className="flex space-x-2">
+                      <input
+                        type="text"
+                        placeholder="Ex: Bifoun"
+                        value={checkpointInput}
+                        onChange={(e) => setCheckpointInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCheckpoint())}
+                        className="flex-1 bg-white border border-slate-200 rounded-xl p-2 text-xs focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={addCheckpoint}
+                        className="px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold cursor-pointer"
+                      >
+                        Ajouter
+                      </button>
+                    </div>
+
+                    {/* Liste des checkpoints ajoutés */}
+                    <div className="flex flex-wrap gap-1.5 pt-1.5">
+                      {routeForm.checkpoints.length === 0 ? (
+                        <span className="text-[10px] text-slate-400 italic">Aucun checkpoint configuré.</span>
+                      ) : (
+                        routeForm.checkpoints.map((cp, idx) => (
+                          <span key={idx} className="bg-slate-200 text-slate-800 text-[10px] px-2 py-0.5 rounded-full flex items-center font-bold">
+                            <span>{cp}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeCheckpoint(idx)}
+                              className="ml-1 text-slate-500 hover:text-red-500 font-extrabold focus:outline-none"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex space-x-2 pt-2">
+                    {editingRouteId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingRouteId(null);
+                          setRouteForm({
+                            departure: 'Libreville',
+                            arrival: '',
+                            distance: 250,
+                            roadCondition: 'Praticable avec nids de poule',
+                            estimatedDuration: '4h',
+                            checkpoints: []
+                          });
+                        }}
+                        className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                      >
+                        Annuler
+                      </button>
+                    )}
+                    <button
+                      type="submit"
+                      className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
+                    >
+                      {editingRouteId ? "Mettre à jour la ligne" : "Créer la ligne nationale"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* National Routes Table */}
+              <div className="lg:col-span-7 bg-slate-50 border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 text-left">Itinéraires & Lignes du Réseau National</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-slate-800">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-slate-500 uppercase font-bold text-[9px]">
+                        <th className="py-2">Trajet</th>
+                        <th className="py-2">Distance / Durée</th>
+                        <th className="py-2">Checkpoints</th>
+                        <th className="py-2 text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {routes.map((route) => {
+                        const parsedCheckpoints = Array.isArray(route.checkpoints) 
+                          ? route.checkpoints 
+                          : route.checkpoints ? JSON.parse(route.checkpoints) : [];
+                        return (
+                          <tr key={route.id} className="hover:bg-slate-100/50 transition-all">
+                            <td className="py-3">
+                              <p className="font-bold text-slate-900">{route.departure} ➔ {route.arrival}</p>
+                              <span className="text-[8px] text-slate-400 font-mono">ID: {route.id}</span>
+                            </td>
+                            <td className="py-3">
+                              <p className="font-semibold">{route.distance} km</p>
+                              <p className="text-[10px] text-slate-500">Durée : {route.estimatedDuration}</p>
+                            </td>
+                            <td className="py-3">
+                              <div className="flex flex-wrap gap-1 max-w-[180px]">
+                                {parsedCheckpoints.length === 0 ? (
+                                  <span className="text-[9px] text-slate-400 italic">Direct</span>
+                                ) : (
+                                  parsedCheckpoints.map((cp: string, i: number) => (
+                                    <span key={i} className="bg-slate-200 text-slate-700 text-[8px] px-1.5 py-0.2 rounded font-bold">
+                                      {cp}
+                                    </span>
+                                  ))
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3 text-center">
+                              <div className="flex justify-center items-center space-x-1">
+                                <button
+                                  onClick={() => startEditRoute(route)}
+                                  className="p-1 hover:bg-slate-200 text-slate-600 rounded cursor-pointer"
+                                  title="Modifier"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteRoute(route.id)}
+                                  className="p-1 hover:bg-rose-100 text-rose-600 rounded cursor-pointer"
+                                  title="Supprimer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
