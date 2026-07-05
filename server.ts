@@ -1827,6 +1827,9 @@ app.delete('/api/parcels/:id', authenticateToken, async (req, res) => {
 // ========================================================
 // GENERATION DE BILLET PDF ELECTRONIQUE AVEC QR CODE (PUBLIC)
 // ========================================================
+// ========================================================================
+// GENERATION DE BILLET PDF ELECTRONIQUE AVEC QR CODE (STRICTEMENT 1 PAGE)
+// ========================================================================
 app.get('/api/bookings/:id/pdf', async (req, res) => {
   const { id } = req.params;
 
@@ -1843,74 +1846,160 @@ app.get('/api/bookings/:id/pdf', async (req, res) => {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=Billet_${booking.id}.pdf`);
 
+    // Génération du QR Code de contrôle
     const qrCodeBuffer = await QRCode.toBuffer(booking.id, {
       errorCorrectionLevel: 'H',
       margin: 1,
-      width: 150
+      width: 120
     });
 
-    const doc = new PDFDocument({ size: 'A5', layout: 'landscape', margin: 20 });
-    doc.page.width = 595.28; 
-    doc.page.height = 420;
+    // Initialisation du document PDF en format A5 Paysage (595.28 x 420)
+    // Nous désactivons les marges automatiques pour un contrôle parfait des éléments
+    const doc = new PDFDocument({ size: 'A5', layout: 'landscape', margin: 0 });
     doc.pipe(res); 
 
-    // Bandeau d'en-tête (Bleu sombre)
-    doc.rect(0, 0, doc.page.width, 60).fill('#0f172a');
+    const width = 595.28;
+    const height = 420;
 
-    // Textes de l'en-tête
+    // 1. BANDEAU D'EN-TÊTE (Bleu Sombre #0f172a)
+    doc.rect(0, 0, width, 65).fill('#0f172a');
+
+    // Titre et Sous-titre principal
     doc.fillColor('#ffffff')
-       .fontSize(15)
+       .fontSize(14)
        .font('Helvetica-Bold')
-       .text("TRANSGABON CONNECT", 20, 15)
-       .fontSize(8)
-       .font('Helvetica')
-       .text("Centrale Nationale de Réservation • Titre de Voyage Officiel", 20, 35);
-
-    // Icône bus décorative
-    doc.fontSize(22).text("🚌", doc.page.width - 50, 16);
-
-    // Colonne 1 : Détails du Voyage (Gauche)
-    doc.fillColor('#0f172a')
-       .fontSize(9)
-       .font('Helvetica-Bold')
-       .text("DÉTAILS DU VOYAGE", 20, 80);
-
-    doc.font('Helvetica')
-       .fontSize(8.5)
-       .text(`Compagnie : ${booking.trip?.agencyName || 'Partenaire National'}`)
-       .text(`Départ : ${booking.trip?.departure}`)
-       .text(`Destination : ${booking.trip?.arrival}`)
-       .text(`Départ le : ${booking.trip?.departureTime ? new Date(booking.trip.departureTime).toLocaleString('fr-FR') : 'Non spécifié'}`)
-       .text(`Bus N° : ${booking.trip?.busNumber || 'N/A'}`)
-       .text(`Siège : N° ${booking.seatNumber}`);
-
-    // Colonne 2 : Informations Passager (Milieu)
-    doc.font('Helvetica-Bold')
-       .fontSize(9)
-       .text("PASSAGER & SÉCURITÉ", 190, 80);
-
-    doc.font('Helvetica')
-       .fontSize(8.5)
-       .text(`Nom : ${booking.travelerName}`)
-       .text(`Téléphone : ${booking.travelerPhone}`)
-       .text(`CNI / Passeport : ${booking.travelerCni}`)
-       .text(`Montant : ${booking.amount.toLocaleString('fr-FR')} FCFA`)
-       .text(`Statut : ${booking.status}`)
-       .text(`Transaction : ${booking.transactionId}`);
-
-    // Colonne 3 : Code QR pour le contrôle (Droite)
-    doc.image(qrCodeBuffer, doc.page.width - 145, 65, { width: 110 });
-    doc.fillColor('#0f172a')
+       .text("TRANSGABON CONNECT", 20, 16);
+       
+    doc.fillColor('#38bdf8')
        .fontSize(7.5)
        .font('Helvetica-Bold')
-       .text(`RÉSERVE : ${booking.id}`, doc.page.width - 145, 180, { align: 'center', width: 110 });
+       .text("RESEAU NATIONAL DE TRANSPORT TERRESTRE GABONAIS", 20, 36);
 
-    // Pied de page (Gris clair pour les mentions légales)
-    doc.rect(0, doc.page.height - 35, doc.page.width, 35).fill('#f1f5f9');
-    doc.fillColor('#334155')
-       .fontSize(6.5)
+    // Titre du coupon de contrôle (à droite)
+    doc.fillColor('#ffffff')
+       .fontSize(12)
        .font('Helvetica-Bold')
-       .text("⚠️ RAPPEL CRITIQUE : Présentez ce document imprimé ou sur votre téléphone à l'embarquement. La CNI nationale ou le Passeport en cours de validité est OBLIGATOIRE aux checkpoints de contrôle de Kango, Bifoun, Alembe et Ndjolé.", 20, doc.page.height - 25, { width: doc.page.width - 40 });
+       .text("COUPON COMPAGNIE", 435, 16);
+       
+    doc.fillColor('#94a3b8')
+       .fontSize(7.5)
+       .font('Helvetica')
+       .text("TALON D'EMBARQUEMENT", 435, 34);
+
+    // Badge émeraude pour le Code de Réservation (au milieu)
+    doc.roundedRect(280, 16, 125, 26, 6).fill('#10b981');
+    doc.fillColor('#ffffff')
+       .fontSize(10.5)
+       .font('Helvetica-Bold')
+       .text(booking.id, 280, 24, { align: 'center', width: 125 });
+
+    // 2. LIGNE DE DÉCOUPE POINTILLÉE (Tear-off stub indicator)
+    doc.moveTo(420, 0)
+       .lineTo(420, 335)
+       .lineWidth(1.5)
+       .dash(4, { space: 4 })
+       .stroke('#cbd5e1')
+       .undash(); // désactive le mode pointillé pour la suite du dessin
+
+    // 3. CARTES D'INFORMATIONS (Partie gauche)
+    
+    // CARTE 1 : Trajet (Y: 80 à 195)
+    doc.roundedRect(20, 80, 380, 115, 8).fill('#f8fafc');
+    doc.roundedRect(20, 80, 380, 115, 8).lineWidth(1).stroke('#e2e8f0');
+
+    doc.fillColor('#64748b').fontSize(7.5).font('Helvetica-Bold').text("DÉTAILS DU VOYAGE", 32, 90);
+    
+    // Titre du trajet en grand
+    doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(13).text(`${booking.trip?.departure} ➔ ${booking.trip?.arrival}`, 32, 102);
+
+    doc.fontSize(8.5).font('Helvetica');
+    
+    doc.fillColor('#475569').text("Compagnie :", 32, 126);
+    doc.font('Helvetica-Bold').fillColor('#0f172a').text(booking.trip?.agencyName || 'Partenaire National', 95, 126);
+
+    doc.font('Helvetica').fillColor('#475569');
+    doc.text("Départ le :", 32, 141);
+    doc.font('Helvetica-Bold').fillColor('#0f172a').text(booking.trip?.departureTime ? new Date(booking.trip.departureTime).toLocaleString('fr-FR') : 'Non spécifié', 95, 141);
+
+    doc.font('Helvetica').fillColor('#475569');
+    doc.text("Autobus N° :", 32, 156);
+    doc.font('Helvetica-Bold').fillColor('#0f172a').text(booking.trip?.busNumber || 'N/A', 95, 156);
+
+    doc.font('Helvetica').fillColor('#475569');
+    doc.text("Siège Assigné :", 32, 171);
+    doc.font('Helvetica-Bold').fillColor('#10b981').text(`N° ${booking.seatNumber}`, 105, 171);
+
+
+    // CARTE 2 : Passager & Sécurité (Y: 210 à 320)
+    doc.roundedRect(20, 210, 380, 110, 8).fill('#f8fafc');
+    doc.roundedRect(20, 210, 380, 110, 8).lineWidth(1).stroke('#e2e8f0');
+
+    doc.fillColor('#64748b').fontSize(7.5).font('Helvetica-Bold').text("INFORMATIONS PASSAGER", 32, 220);
+
+    doc.fontSize(8.5).font('Helvetica');
+    
+    doc.fillColor('#475569').text("Nom complet :", 32, 235);
+    doc.font('Helvetica-Bold').fillColor('#0f172a').text(booking.travelerName, 100, 235);
+
+    doc.font('Helvetica').fillColor('#475569');
+    doc.text("Téléphone :", 32, 250);
+    doc.font('Helvetica-Bold').fillColor('#0f172a').text(booking.travelerPhone, 95, 250);
+
+    doc.font('Helvetica').fillColor('#475569');
+    doc.text("CNI / Passport :", 32, 265);
+    doc.font('Helvetica-Bold').fillColor('#0f172a').text(booking.travelerCni, 110, 265);
+
+    doc.font('Helvetica').fillColor('#475569');
+    doc.text("Paiement :", 32, 280);
+    doc.font('Helvetica-Bold').fillColor('#0f172a').text(`${booking.paymentMethod?.replace('_', ' ') || 'AGENCE'} (${booking.transactionId})`, 95, 280);
+
+    doc.font('Helvetica').fillColor('#475569');
+    doc.text("Prix payé :", 32, 295);
+    doc.font('Helvetica-Bold').fillColor('#10b981').text(`${booking.amount.toLocaleString()} FCFA`, 95, 295);
+
+
+    // 4. TALON DE CONTRÔLE (Partie droite, coupon détachable)
+    
+    // Image du Code QR
+    doc.image(qrCodeBuffer, 442, 80, { width: 100 });
+
+    doc.fillColor('#64748b')
+       .fontSize(7)
+       .font('Helvetica-Bold')
+       .text(`RÉFERENCE : ${booking.id}`, 435, 190, { align: 'center', width: 115 });
+
+    // Badge dynamique de statut
+    const statusColor = booking.status === 'EMBARQUE' ? '#10b981' : booking.status === 'PAYE' ? '#2563eb' : '#f43f5e';
+    const statusText = booking.status === 'EMBARQUE' ? 'EMBARQUE' : booking.status === 'PAYE' ? 'BILLET PAYE' : 'EN ATTENTE';
+    
+    doc.roundedRect(435, 205, 115, 20, 4).fill(statusColor);
+    doc.fillColor('#ffffff')
+       .fontSize(7.5)
+       .font('Helvetica-Bold')
+       .text(statusText, 435, 211, { align: 'center', width: 115 });
+
+    // Affichage géant du numéro de Siège sur le talon
+    doc.fillColor('#64748b').fontSize(7.5).font('Helvetica-Bold').text("SIEGE ASSIGNÉ", 435, 240, { align: 'center', width: 115 });
+    doc.fillColor('#10b981').fontSize(26).font('Helvetica-Bold').text(`${booking.seatNumber}`, 435, 252, { align: 'center', width: 115 });
+
+    doc.fillColor('#64748b')
+       .fontSize(7)
+       .font('Helvetica')
+       .text(`Bus N°: ${booking.trip?.busNumber || 'N/A'}`, 435, 287, { align: 'center', width: 115 });
+
+    // 5. PIED DE PAGE DE SÉCURITÉ (Y: 335 à 420)
+    doc.rect(0, 335, width, 85).fill('#f1f5f9');
+    doc.moveTo(0, 335).lineTo(width, 335).lineWidth(1).stroke('#cbd5e1');
+
+    doc.fillColor('#b91c1c')
+       .fontSize(8)
+       .font('Helvetica-Bold')
+       .text("⚠️ REGLEMENTATION & PROTOCOLE DE SECURITE ROUTIERE DU GABON :", 20, 348);
+
+    doc.fillColor('#334155')
+       .fontSize(7.5)
+       .font('Helvetica')
+       .text("La carte nationale d'identité (CNI) ou le Passeport en cours de validité est STRICTEMENT OBLIGATOIRE pour franchir les contrôles de gendarmerie et de police aux barrières de Kango, Bifoun, Alembe et Ndjolé. Présentez ce titre de transport imprimé ou sur votre téléphone portable dès votre arrivée à la gare routière d'embarquement.", 20, 362, { width: 555, lineGap: 1.5 });
 
     doc.end();
 
@@ -1919,7 +2008,6 @@ app.get('/api/bookings/:id/pdf', async (req, res) => {
     res.status(500).send("Erreur serveur lors de la génération du billet.");
   }
 });
-
 
 // À ajouter dans votre code serveur Express (sans authenticateToken)
 app.get('/api/parcels/track/:id', async (req, res) => {
