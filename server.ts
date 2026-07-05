@@ -588,12 +588,12 @@ app.get('/api/trips', async (req, res) => {
   }
 });
 
-// 2. Add custom trip (PROTECTED)
+/// 2. Add custom trip (PROTECTED - Corrigé)
 app.post('/api/trips', authenticateToken, async (req, res) => {
   const { agencyId, departure, arrival, departureTime, price, busCapacity, busNumber, checkpoints, driverName, driverPhone } = req.body;
 
   // L'agence connectée ne peut créer des trajets que pour elle-même
-  if (req.user.role === 'agency' && req.user.id !== agencyId) {
+  if (req.user.role === 'agency' && req.user.agencyId !== agencyId) { // <--- VERSION CORRIGÉE
     return res.status(403).json({ success: false, message: "Non autorisé à planifier pour une autre agence." });
   }
 
