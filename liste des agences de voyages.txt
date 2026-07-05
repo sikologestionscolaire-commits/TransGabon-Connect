@@ -1,0 +1,16 @@
+| Agence                                          | Ville principale | Destinations connues                                 | Contact          |
+| ----------------------------------------------- | ---------------- | ---------------------------------------------------- | ---------------- |
+| Major Transport                                 | Libreville       | Oyem, Bitam, Minvoul, Mitzic                         | +241 04 84 10 11 |
+| Transporteur Voyages                            | Libreville       | Oyem, Bitam, Medouneu, Minvoul                       | À confirmer      |
+| Alain Transport / Alliance Transport & Services | Libreville       | Oyem, Bitam, Mouila, Tchibanga (selon les lignes)    | À confirmer      |
+| HITU Transport                                  | Mouila           | Libreville, Ndendé, Tchibanga, Mouila                | +241 06 18 74 56 |
+| Bitam Express                                   | Libreville       | Bitam                                                | À confirmer      |
+| Direction Sud Transport                         | Libreville       | Mouila, Ndendé, Tchibanga, Mayumba                   | À confirmer      |
+| Nyanga Voyages                                  | Tchibanga        | Libreville, Mouila                                   | À confirmer      |
+| Dola Express                                    | Libreville       | Sud du Gabon                                         | À confirmer      |
+| Lampassa Voyages                                | Libreville       | Nord du Gabon                                        | À confirmer      |
+| Razac 6 Transport                               | Libreville       | Plusieurs destinations                               | À confirmer      |
+| JC Transport                                    | Libreville       | Plusieurs destinations                               | À confirmer      |
+| La Molvilloise Transport                        | Mouila           | Libreville, Mouila                                   | À confirmer      |
+| Agence Trans'urb                                | Libreville       | Lambaréné, Moanda (certaines lignes)                 | +241 66 81 64 87 |
+| SOGATRA                                         | Libreville       | Transport urbain et quelques dessertes interurbaines | À confirmer      |
