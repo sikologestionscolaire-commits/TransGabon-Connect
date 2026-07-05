@@ -20,3 +20,4 @@ window.fetch = function (input, init) {
   }
   return ORIGINAL_FETCH(input, init);
 };
+
