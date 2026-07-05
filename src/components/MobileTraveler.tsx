@@ -4,7 +4,7 @@ import { GABON_ROUTES } from '../data';
 import { 
   Search, MapPin, Calendar, Clock, CreditCard, ChevronRight, Bus, 
   User, Shield, Compass, Sparkles, MessageSquare, Send, X, AlertCircle, 
-  Star, Package 
+  Star, Package, Download, CheckCircle 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -40,6 +40,9 @@ export default function MobileTraveler({ onAddBooking, bookings, trips, reviews 
   const [paymentMethod, setPaymentMethod] = useState<'AIRTEL_MONEY' | 'MOOV_MONEY' | 'AGENCE'>('AIRTEL_MONEY');
   const [paymentPhone, setPaymentPhone] = useState('');
   const [paymentType, setPaymentType] = useState<'EN_LIGNE' | 'EN_AGENCE'>('EN_LIGNE');
+
+  // NOUVEL ÉTAT POUR L'ÉCRAN DE CONFIRMATION DE SUCCÈS
+  const [lastCreatedBooking, setLastCreatedBooking] = useState<Booking | null>(null);
 
   // Review / feedback states
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -153,11 +156,9 @@ export default function MobileTraveler({ onAddBooking, bookings, trips, reviews 
         
         if (resData.success) {
           onAddBooking(resData.data);
-          alert("Réservation Enregistrée ! Votre siège N° " + selectedSeat + " est bloqué. Veuillez payer " + selectedTrip?.price.toLocaleString() + " FCFA au guichet de l'agence avant l'embarquement.");
+          // AFFICHE LE PANNEAU DE CONFIRMATION DE SUCCÈS
+          setLastCreatedBooking(resData.data);
           setSelectedTrip(null);
-          setActiveTab('tickets');
-          setTrackingTicket(resData.data);
-          setTrackingProgress(10);
         } else {
           alert(resData.message || "Erreur de validation");
         }
@@ -233,10 +234,8 @@ export default function MobileTraveler({ onAddBooking, bookings, trips, reviews 
           setIsProcessingPayment(false);
           setShowUssdModal(false);
           setSelectedTrip(null);
-          // Go to ticket tab
-          setActiveTab('tickets');
-          setTrackingTicket(resData.data);
-          setTrackingProgress(15); // Start track
+          // AFFICHE LE PANNEAU DE CONFIRMATION DE SUCCÈS
+          setLastCreatedBooking(resData.data);
         }, 1500);
       } else {
         alert(resData.message || "Erreur de validation");
@@ -1033,40 +1032,12 @@ export default function MobileTraveler({ onAddBooking, bookings, trips, reviews 
                                       <span className="w-2 h-2 bg-emerald-500 rounded-full mr-1"></span>
                                       En Route - GPS Actif
                                     </span>
-                                    <span className="text-slate-400">Vitesse : 82 km/h</span>
+                                    <span className="text-slate-500">
+                                      {getActiveCheckpoint(trip.checkpoints ? JSON.parse(trip.checkpoints) : [], trackingProgress)}
+                                    </span>
                                   </div>
-
-                                  {/* Progress Visualizer of checkpoints */}
-                                  <div className="relative h-2 bg-slate-800 rounded-full my-3">
-                                    <div 
-                                      className="absolute h-full bg-emerald-500 rounded-full transition-all duration-1000" 
-                                      style={{ width: `${trackingProgress}%` }}
-                                    ></div>
-                                    <div 
-                                      className="absolute w-4 h-4 bg-white border border-emerald-500 rounded-full -top-1 shadow flex items-center justify-center text-[8px] transition-all duration-1000"
-                                      style={{ left: `calc(${trackingProgress}% - 8px)` }}
-                                    >
-                                      🚌
-                                    </div>
-                                  </div>
-
-                                  <div className="flex justify-between text-[7px] text-slate-500 mb-2">
-                                    <span>Libreville</span>
-                                    {trip.checkpoints.map(cp => (
-                                      <span key={cp}>{cp}</span>
-                                    ))}
-                                    <span>{trip.arrival}</span>
-                                  </div>
-
-                                  <div className="bg-white/5 p-2 rounded-xl text-[9px] space-y-1 text-left">
-                                    <div className="flex justify-between">
-                                      <span className="text-slate-400">Position :</span>
-                                      <span className="font-bold text-white">{getActiveCheckpoint(trip.checkpoints, trackingProgress)}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-slate-400">Chauffeur :</span>
-                                      <span className="text-white">{trip.driverName}</span>
-                                    </div>
+                                  <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
+                                    <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${trackingProgress}%` }}></div>
                                   </div>
                                 </div>
                               )}
@@ -1079,103 +1050,82 @@ export default function MobileTraveler({ onAddBooking, bookings, trips, reviews 
                 </div>
               )}
 
-              {/* --- TAB 4: COLIS & BAGAGES TRACKING (NOUVEAU) --- */}
               {activeTab === 'colis' && (
-                <div className="p-4 space-y-4 text-left animate-fade-in" id="traveler-parcel-tracking-panel">
-                  <div className="bg-gradient-to-r from-emerald-950 to-slate-900 border border-slate-800 rounded-3xl p-4 text-center relative overflow-hidden">
-                    <Package className="w-8 h-8 mx-auto text-emerald-400 mb-2" />
-                    <h2 className="text-sm font-bold text-white mb-1">Suivi National de Fret & Colis</h2>
-                    <p className="text-[10px] text-slate-300">Saisissez votre code pour suivre l'acheminement de vos colis</p>
-                  </div>
+                <div className="p-4" id="traveler-colis-panel">
+                  <h3 className="text-xs font-bold text-slate-300 mb-3 text-left">Suivi de Fret & Colis</h3>
 
-                  {/* Search Input Box */}
-                  <form onSubmit={handleTrackParcel} className="bg-slate-900 border border-slate-800 rounded-3xl p-4 space-y-3">
+                  <form onSubmit={handleTrackParcel} className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-3 mb-4 text-left">
                     <div>
-                      <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Numéro de Référence Colis</label>
-                      <input 
-                        type="text" 
-                        required
-                        placeholder="Ex: COL-GAB-28190" 
-                        value={trackParcelId}
-                        onChange={(e) => setTrackParcelId(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-2 px-3 text-xs text-white focus:outline-none focus:border-emerald-500 uppercase font-mono"
-                      />
+                      <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Numéro de Colis (Ref)</label>
+                      <div className="relative">
+                        <Package className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-500" />
+                        <input 
+                          type="text" 
+                          required
+                          placeholder="Ex: COL-GAB-12903" 
+                          value={trackParcelId}
+                          onChange={(e) => setTrackParcelId(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 pl-8 pr-3 text-xs text-white focus:outline-none focus:border-emerald-500 uppercase font-mono"
+                        />
+                      </div>
                     </div>
 
                     <button
                       type="submit"
                       disabled={isTrackingParcel}
-                      className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 rounded-2xl text-xs transition-all flex items-center justify-center cursor-pointer"
+                      className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-1.5 px-3 rounded-xl text-[11px] transition-all cursor-pointer flex items-center justify-center"
                     >
-                      {isTrackingParcel ? 'Recherche...' : 'Rechercher le Colis ➔'}
+                      {isTrackingParcel ? 'Recherche...' : 'Rechercher le Colis'}
                     </button>
                   </form>
 
-                  {/* Feedback Errors */}
                   {trackError && (
-                    <div className="bg-rose-500/10 border border-rose-500/25 rounded-2xl p-3 text-xs text-rose-400 flex items-center space-x-1.5">
-                      <AlertCircle className="w-4 h-4 text-rose-400" />
+                    <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] rounded-xl font-semibold mb-4 text-left flex items-center space-x-1">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                       <span>{trackError}</span>
                     </div>
                   )}
 
-                  {/* Tracked result panel with timeline */}
                   {trackedParcel && (
-                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 space-y-4">
-                      <div className="border-b border-slate-850 pb-2 mb-2">
-                        <span className="text-[10px] font-bold text-emerald-400">RÉFÉRENCE : {trackedParcel.id}</span>
-                        <div className="text-xs font-bold text-white mt-1">{trackedParcel.departure} ➔ {trackedParcel.arrival}</div>
+                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 text-left space-y-4">
+                      <div className="border-b border-slate-850 pb-2">
+                        <span className="text-[9px] font-bold text-emerald-400">RÉFÉRENCE : {trackedParcel.id}</span>
+                        <div className="text-xs font-bold text-white mt-0.5">{trackedParcel.departure} ➔ {trackedParcel.arrival}</div>
                         {trackedParcel.description && <p className="text-[9px] text-slate-400 mt-1 italic">"{trackedParcel.description}"</p>}
                       </div>
 
-                      {/* Timeline Visualizer */}
-                      <div className="relative pl-6 space-y-6 border-l border-slate-800">
-                        {/* Step 1: Registered */}
+                      {/* Timeline status */}
+                      <div className="relative pl-6 space-y-5 border-l border-slate-800 text-[11px]">
                         <div className="relative">
                           <span className={`absolute -left-[30px] top-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center text-[8px] font-bold ${
                             ['ENREGISTRE', 'ARRIVE', 'LIVRE'].includes(trackedParcel.status)
                               ? 'bg-emerald-500 border-emerald-400 text-slate-950'
                               : 'bg-slate-950 border-slate-800 text-slate-600'
-                          }`}>
-                            ✓
-                          </span>
-                          <div className="text-xs font-bold text-white">Colis pris en charge</div>
-                          <p className="text-[9px] text-slate-400 leading-relaxed">Le colis a été enregistré à la gare de départ ({trackedParcel.departure}) et étiqueté pour le transport.</p>
-                          {trackedParcel.createdAt && (
-                            <span className="text-[7px] text-slate-500 font-mono block mt-1">Le {new Date(trackedParcel.createdAt).toLocaleDateString()}</span>
-                          )}
+                          }`}>✓</span>
+                          <div className="font-bold text-white">Colis Enregistré</div>
+                          <p className="text-[9px] text-slate-400">Pris en charge à la gare de départ ({trackedParcel.departure}).</p>
                         </div>
 
-                        {/* Step 2: Arrived */}
                         <div className="relative">
                           <span className={`absolute -left-[30px] top-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center text-[8px] font-bold ${
                             ['ARRIVE', 'LIVRE'].includes(trackedParcel.status)
                               ? 'bg-emerald-500 border-emerald-400 text-slate-950'
                               : 'bg-slate-950 border-slate-800 text-slate-600'
-                          }`}>
-                            ✓
-                          </span>
-                          <div className="text-xs font-bold text-white">Arrivé à destination</div>
-                          <p className="text-[9px] text-slate-400 leading-relaxed">Le colis est arrivé à quai à la gare de destination ({trackedParcel.arrival}). Prêt pour le retrait par le destinataire sur présentation d'une CNI.</p>
+                          }`}>✓</span>
+                          <div className="font-bold text-white">Arrivé à destination</div>
+                          <p className="text-[9px] text-slate-400">Arrivé à la gare de {trackedParcel.arrival}. En attente de retrait.</p>
                         </div>
 
-                        {/* Step 3: Delivered */}
                         <div className="relative">
                           <span className={`absolute -left-[30px] top-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center text-[8px] font-bold ${
                             trackedParcel.status === 'LIVRE'
                               ? 'bg-emerald-500 border-emerald-400 text-slate-950'
                               : 'bg-slate-950 border-slate-800 text-slate-600'
-                          }`}>
-                            ✓
-                          </span>
-                          <div className="text-xs font-bold text-white">Colis Retiré (Livré)</div>
-                          <p className="text-[9px] text-slate-400 leading-relaxed">Le colis a été remis en main propre au destinataire désigné.</p>
-                          {trackedParcel.deliveredAt && (
-                            <span className="text-[7px] text-slate-500 font-mono block mt-1">Le {new Date(trackedParcel.deliveredAt).toLocaleDateString()}</span>
-                          )}
+                          }`}>✓</span>
+                          <div className="font-bold text-white">Colis Retiré (Livré)</div>
+                          <p className="text-[9px] text-slate-400">Remis en main propre au destinataire.</p>
                         </div>
                       </div>
-
                     </div>
                   )}
                 </div>

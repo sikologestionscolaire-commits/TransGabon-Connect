@@ -65,7 +65,8 @@ export default function App() {
         if (bookingsData.success) {
           setBookings(bookingsData.data);
         }
-      } else {
+      } else if (loggedInRole) {
+        // On ne vide le tableau que si un utilisateur d'administration (agent/chef) se déconnecte !
         setBookings([]); 
       }
 
