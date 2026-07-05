@@ -1,0 +1,6 @@
+{
+  "name": "Réservation Transport Gabon",
+  "description": "Plateforme complète de réservation de transport terrestre au Gabon pour agences de voyage. Comprend l'application voyageur, l'application d'embarquement terrain, le tableau de bord agence, le portail Super Admin et une API de paiement mobile money (Airtel/Moov Money) sécurisée.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,63 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace = "com.transgabon.connect"
+    compileSdk = rootProject.ext.has('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 36
+
+    buildFeatures {
+        resValues = true
+    }
+
+    defaultConfig {
+        applicationId "com.transgabon.connect"
+        minSdkVersion rootProject.ext.has('minSdkVersion') ? rootProject.ext.minSdkVersion : 24
+        targetSdkVersion rootProject.ext.has('targetSdkVersion') ? rootProject.ext.targetSdkVersion : 36
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+            // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+            // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+// Le bloc repositories contenant flatDir a été complètement supprimé d'ici
+
+dependencies {
+    // Charge tous les .jar et .aar locaux sans utiliser flatDir (élimine l'avertissement)
+    implementation fileTree(include: ['*.jar', '*.aar'], dir: 'libs')
+    implementation fileTree(include: ['*.jar', '*.aar'], dir: '../capacitor-cordova-android-plugins/src/main/libs')
+
+    // Références explicites à rootProject.ext avec valeur de repli (fallback)
+    implementation "androidx.appcompat:appcompat:${rootProject.ext.has('androidxAppCompatVersion') ? rootProject.ext.androidxAppCompatVersion : '1.6.1'}"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:${rootProject.ext.has('androidxCoordinatorLayoutVersion') ? rootProject.ext.androidxCoordinatorLayoutVersion : '1.2.0'}"
+    implementation "androidx.core:core-splashscreen:${rootProject.ext.has('coreSplashScreenVersion') ? rootProject.ext.coreSplashScreenVersion : '1.0.1'}"
+
+    implementation project(':capacitor-android')
+
+    testImplementation "junit:junit:${rootProject.ext.has('junitVersion') ? rootProject.ext.junitVersion : '4.13.2'}"
+    androidTestImplementation "androidx.test.ext:junit:${rootProject.ext.has('androidxJunitVersion') ? rootProject.ext.androidxJunitVersion : '1.1.5'}"
+    androidTestImplementation "androidx.test.espresso:espresso-core:${rootProject.ext.has('androidxEspressoCoreVersion') ? rootProject.ext.androidxEspressoCoreVersion : '3.5.1'}"
+
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch (Exception e) {
+    // Utilisation de la variable 'e' pour éviter l'avertissement de paramètre inutilisé
+    logger.info("google-services.json not found, google-services plugin not applied. Reason: ${e.getMessage()}")
+}

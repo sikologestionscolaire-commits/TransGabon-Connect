@@ -1,0 +1,153 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Agency {
+  id             String    @id
+  name           String
+  packName       String    @default("Starter")
+  activeBuses    Int       @default(0)
+  commissionRate Float     @default(1.0)
+  monthlyFee     Int       @default(15000)
+  logo           String    @default("🚌")
+  joinedDate     String
+  status         String    @default("ACTIVE")
+  password       String    @default("gabon2026")
+  buses          Bus[]
+  drivers        Driver[]
+  tariffs        Tariff[]
+  parcels        Parcel[]
+  users      AgencyUser[]
+}
+
+model Bus {
+  id       String @id
+  agencyId String
+  agency   Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  plate    String
+  capacity Int
+}
+
+model Driver {
+  id       String @id
+  agencyId String
+  agency   Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  name     String
+  phone    String
+}
+
+model Tariff {
+  id         String @id
+  agencyId   String
+  agency     Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  agencyName String
+  departure  String
+  arrival    String
+  price      Int
+}
+
+model Trip {
+  id             String    @id
+  agencyId       String
+  agencyName     String
+  departure      String
+  arrival        String
+  departureTime  String
+  arrivalTime    String
+  price          Int
+  busCapacity    Int
+  availableSeats Int
+  busNumber      String
+  checkpoints    String    // Stocké sous forme de texte JSON
+  driverName     String
+  driverPhone    String
+  bookings       Booking[]
+  reviews        Review[]
+  parcels        Parcel[]
+}
+
+model Booking {
+  id             String  @id
+  tripId         String
+  trip           Trip    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  travelerName   String
+  travelerPhone  String
+  travelerCni    String
+  seatNumber     Int
+  status         String  // 'EN_ATTENTE', 'PAYE', 'EMBARQUE', 'ANNULE'
+  paymentMethod  String
+  paymentPhone   String
+  paymentType    String  // 'EN_LIGNE' ou 'EN_AGENCE'
+  amount         Int
+  transactionId  String
+  createdAt      String
+  boardedAt      String?
+}
+
+model Review {
+  id           String  @id
+  agencyId     String
+  tripId       String?
+  trip         Trip?   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  reviewerName String
+  rating       Int
+  comment      String
+  createdAt    String
+}
+
+model GabonRouteInfo {
+  id                String @id
+  departure         String
+  arrival           String
+  distance          Int
+  roadCondition     String
+  estimatedDuration String
+  checkpoints       String // Stocké sous forme de texte JSON
+}
+
+
+model Parcel {
+  id             String    @id
+  senderName     String
+  senderPhone    String
+  receiverName   String
+  receiverPhone  String
+  departure      String
+  arrival        String
+  weight         Float?    // Optionnel (en kg)
+  description    String?   // Nature du colis (ex: cartons, enveloppe)
+  price          Int
+  status         String    // 'ENREGISTRE', 'EN_ROUTE', 'ARRIVE', 'LIVRE'
+  agencyId       String
+  agency         Agency    @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  tripId         String?   // Le bus dans lequel le colis voyage
+  trip           Trip?     @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  createdAt      String
+  deliveredAt    String?
+}
+
+model AgencyUser {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String
+  name      String
+  role      String   // "CHEF" ou "AGENT"
+  agencyId  String
+  agency    Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model SuperAdmin {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String
+  name      String
+  createdAt DateTime @default(now())
+}

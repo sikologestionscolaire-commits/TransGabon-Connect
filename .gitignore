@@ -1,0 +1,17 @@
+# Dépendances et dossiers de compilation
+node_modules/
+dist/
+build/
+coverage/
+
+# Fichiers d'environnement et secrets (OBLIGATOIREMENT IGNORÉS)
+.env
+.env*
+!.env.example
+
+# Fichiers système et rapports d'erreurs (logs)
+.DS_Store
+*.log
+
+# Fichiers générés par Prisma
+/src/generated/prisma

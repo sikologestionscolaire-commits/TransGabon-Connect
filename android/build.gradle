@@ -1,0 +1,44 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:9.2.1'
+        classpath 'com.google.gms:google-services:4.5.0'
+
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+    }
+}
+
+// Charge les variables globales de Capacitor
+apply from: "variables.gradle"
+
+// Injecte explicitement ces variables dans le scope local de chaque sous-projet.
+// Cela empêche la recherche implicite montante qui est obsolète dans Gradle 9+.
+subprojects { subproject ->
+    if (subproject.name != 'android') {
+        ext {
+            androidxAppCompatVersion = rootProject.ext.has('androidxAppCompatVersion') ? rootProject.ext.androidxAppCompatVersion : '1.6.1'
+            androidxCoordinatorLayoutVersion = rootProject.ext.has('androidxCoordinatorLayoutVersion') ? rootProject.ext.androidxCoordinatorLayoutVersion : '1.2.0'
+            coreSplashScreenVersion = rootProject.ext.has('coreSplashScreenVersion') ? rootProject.ext.coreSplashScreenVersion : '1.0.1'
+            junitVersion = rootProject.ext.has('junitVersion') ? rootProject.ext.junitVersion : '4.13.2'
+            androidxJunitVersion = rootProject.ext.has('androidxJunitVersion') ? rootProject.ext.androidxJunitVersion : '1.1.5'
+            androidxEspressoCoreVersion = rootProject.ext.has('androidxEspressoCoreVersion') ? rootProject.ext.androidxEspressoCoreVersion : '3.5.1'
+        }
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
