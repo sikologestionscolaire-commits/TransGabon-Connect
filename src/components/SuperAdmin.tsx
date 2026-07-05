@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Agency, Tariff } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -70,7 +69,8 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
 
   const fetchStats = async () => {
     try {
-      const activeToken = localStorage.getItem('adminToken');
+      // Correction de la clé : "token" au lieu de "adminToken"
+      const activeToken = localStorage.getItem('token');
       if (!activeToken) return;
 
       const response = await fetch('/api/dashboard/stats', {
@@ -102,7 +102,8 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
 
   const fetchGlobalAgencyUsers = async () => {
     try {
-      const activeToken = localStorage.getItem('adminToken');
+      // Correction de la clé : "token" au lieu de "adminToken"
+      const activeToken = localStorage.getItem('token');
       if (!activeToken) return;
 
       const response = await fetch('/api/admin/agency-users', {
@@ -131,7 +132,8 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
   const handleCreateAgency = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const activeToken = localStorage.getItem('adminToken');
+      // Correction de la clé : "token" au lieu de "adminToken"
+      const activeToken = localStorage.getItem('token');
       const response = await fetch('/api/agencies', {
         method: 'POST',
         headers: { 
@@ -166,7 +168,8 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
     e.preventDefault();
     if (!selectedAgency) return;
     try {
-      const activeToken = localStorage.getItem('adminToken');
+      // Correction de la clé : "token" au lieu de "adminToken"
+      const activeToken = localStorage.getItem('token');
       const response = await fetch(`/api/agencies/${selectedAgency.id}`, {
         method: 'PUT',
         headers: { 
@@ -201,7 +204,8 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
   const handleDeleteAgency = async (id: string) => {
     if (!confirm("Voulez-vous vraiment supprimer cette agence de voyage ? Tous les voyages associés seront impactés.")) return;
     try {
-      const activeToken = localStorage.getItem('adminToken');
+      // Correction de la clé : "token" au lieu de "adminToken"
+      const activeToken = localStorage.getItem('token');
       const response = await fetch(`/api/agencies/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${activeToken}` }
@@ -241,7 +245,8 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
       return;
     }
     try {
-      const activeToken = localStorage.getItem('adminToken');
+      // Correction de la clé : "token" au lieu de "adminToken"
+      const activeToken = localStorage.getItem('token');
       const response = await fetch('/api/tariffs', {
         method: 'POST',
         headers: { 
@@ -274,7 +279,8 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
     e.preventDefault();
     if (!selectedTariff) return;
     try {
-      const activeToken = localStorage.getItem('adminToken');
+      // Correction de la clé : "token" au lieu de "adminToken"
+      const activeToken = localStorage.getItem('token');
       const response = await fetch(`/api/tariffs/${selectedTariff.id}`, {
         method: 'PUT',
         headers: { 
@@ -307,7 +313,8 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
   const handleDeleteTariff = async (id: string) => {
     if (!confirm("Voulez-vous vraiment supprimer ce tarif ?")) return;
     try {
-      const activeToken = localStorage.getItem('adminToken');
+      // Correction de la clé : "token" au lieu de "adminToken"
+      const activeToken = localStorage.getItem('token');
       const response = await fetch(`/api/tariffs/${id}`, { 
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${activeToken}` }
@@ -340,7 +347,8 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const activeToken = localStorage.getItem('adminToken');
+      // Correction de la clé : "token" au lieu de "adminToken"
+      const activeToken = localStorage.getItem('token');
       const response = await fetch('/api/admin/profile', {
         method: 'PUT',
         headers: {
@@ -369,7 +377,8 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
       return;
     }
     try {
-      const activeToken = localStorage.getItem('adminToken');
+      // Correction de la clé : "token" au lieu de "adminToken"
+      const activeToken = localStorage.getItem('token');
       const response = await fetch('/api/admin/agency-users', {
         method: 'POST',
         headers: {
@@ -400,7 +409,8 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
   const handleDeleteAgencyUser = async (id: string) => {
     if (!confirm("Voulez-vous vraiment révoquer ce compte d'accès d'agence ?")) return;
     try {
-      const activeToken = localStorage.getItem('adminToken');
+      // Correction de la clé : "token" au lieu de "adminToken"
+      const activeToken = localStorage.getItem('token');
       const response = await fetch(`/api/admin/agency-users/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${activeToken}` }
@@ -1130,7 +1140,7 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
                     type="text"
                     required
                     value={adminProfileForm.name}
-                    onChange={(e) => setAdminForm({ ...adminForm, name: e.target.value })} // Erreur d'orthographe d'état corrigée
+                    onChange={(e) => setAdminForm({ ...adminProfileForm, name: e.target.value })}
                     className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs focus:outline-none"
                   />
                 </div>
@@ -1141,7 +1151,7 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
                     type="text"
                     required
                     value={adminProfileForm.username}
-                    onChange={(e) => setAdminForm({ ...adminForm, username: e.target.value })}
+                    onChange={(e) => setAdminForm({ ...adminProfileForm, username: e.target.value })}
                     className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs focus:outline-none font-mono"
                   />
                 </div>
@@ -1152,7 +1162,7 @@ export default function SuperAdmin({ agencies, onRefreshData }: SuperAdminProps)
                     type="password"
                     placeholder="Saisissez un nouveau mot de passe..."
                     value={adminProfileForm.password}
-                    onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
+                    onChange={(e) => setAdminForm({ ...adminProfileForm, password: e.target.value })}
                     className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs focus:outline-none font-mono"
                   />
                   <span className="text-[8px] text-slate-400 block mt-1">Laissez vide si vous souhaitez conserver le mot de passe actuel.</span>
