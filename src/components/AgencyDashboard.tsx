@@ -4,7 +4,7 @@ import { GABON_ROUTES, DRIVERS, BUS_PLATES } from '../data';
 import { 
   PlusCircle, Calendar, DollarSign, Bus as BusIcon, TrendingUp, Users, 
   RefreshCw, Layers, ShieldCheck, Star, Clock, MapPin, Trash2, Edit, 
-  AlertCircle, CheckCircle, Package 
+  AlertCircle, CheckCircle, Package, FileText 
 } from 'lucide-react';
 
 interface AgencyDashboardProps {
@@ -819,7 +819,7 @@ export default function AgencyDashboard({ user, onAddTrip, trips, bookings, agen
                           value={arrival}
                           disabled={user?.subRole === 'AGENT'}
                           onChange={(e) => handleArrivalChange(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs text-slate-850 focus:outline-none"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs text-slate-8550 focus:outline-none font-mono"
                         >
                           {Array.from(new Set((routes.length > 0 ? routes : GABON_ROUTES).filter(r => r.departure === departure).map(r => r.arrival))).map(arr => (
                             <option key={arr} value={arr}>{arr}</option>
@@ -954,16 +954,30 @@ export default function AgencyDashboard({ user, onAddTrip, trips, bookings, agen
                                   <span className="text-xs font-extrabold text-slate-900">{trip.departure} ➔ {trip.arrival}</span>
                                   <span className="text-[9px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-mono uppercase">{trip.busNumber}</span>
                                 </div>
-                                {user?.subRole === 'CHEF' && (
-                                  <button
-                                    onClick={() => handleDeleteTrip(trip.id)}
-                                    className="text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 p-1.5 rounded-lg border border-rose-100 hover:border-rose-200 transition-colors cursor-pointer text-[10px] font-bold flex items-center space-x-1"
-                                    title="Annuler ce voyage"
+                                <div className="flex items-center space-x-2">
+                                  {/* BOUTON DE TELECHARGEMENT DU MANIFESTE DE BORD PDF */}
+                                  <a
+                                    href={`/api/trips/${trip.id}/manifest/pdf`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 p-1.5 rounded-lg transition-colors cursor-pointer text-[10px] font-bold flex items-center space-x-1 shadow-sm"
+                                    title="Télécharger le manifeste de bord PDF officiel"
                                   >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                    <span className="hidden sm:inline">Annuler</span>
-                                  </button>
-                                )}
+                                    <FileText className="w-3.5 h-3.5 text-blue-600" />
+                                    <span>Manifeste PDF</span>
+                                  </a>
+
+                                  {user?.subRole === 'CHEF' && (
+                                    <button
+                                      onClick={() => handleDeleteTrip(trip.id)}
+                                      className="text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 p-1.5 rounded-lg border border-rose-100 hover:border-rose-200 transition-colors cursor-pointer text-[10px] font-bold flex items-center space-x-1"
+                                      title="Annuler ce voyage"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                      <span className="hidden sm:inline">Annuler</span>
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                               
                               <p className="text-[10px] text-slate-600 mt-1 text-left">
@@ -1266,7 +1280,7 @@ export default function AgencyDashboard({ user, onAddTrip, trips, bookings, agen
                       placeholder="Ex: +241 074 50 11 22"
                       value={driverPhoneState}
                       onChange={(e) => setDriverPhoneState(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs text-slate-850 focus:outline-none focus:border-blue-500"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs text-slate-8550 focus:outline-none focus:border-blue-500"
                     />
                   </div>
 
@@ -1479,7 +1493,7 @@ export default function AgencyDashboard({ user, onAddTrip, trips, bookings, agen
 
                 <div className="flex-1 overflow-y-auto space-y-2 pr-1">
                   {(routes.length > 0 ? routes : GABON_ROUTES).map(route => (
-                    <div key={route.id} className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between hover:bg-slate-100/50 transition-all">
+                    <div key={route.id} className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between hover:bg-slate-100/50 transition-colors">
                       <div className="flex items-center space-x-3">
                         <div className="bg-emerald-100 text-emerald-800 w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs">
                           📍
@@ -1548,7 +1562,7 @@ export default function AgencyDashboard({ user, onAddTrip, trips, bookings, agen
                         placeholder="Ex: Stéphane Ndong"
                         value={senderName}
                         onChange={(e) => setSenderName(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs text-slate-850 focus:outline-none"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs text-slate-8550 focus:outline-none"
                       />
                     </div>
                     <div>
@@ -1760,7 +1774,7 @@ export default function AgencyDashboard({ user, onAddTrip, trips, bookings, agen
                             {p.status === 'ARRIVE' && (
                               <button
                                 onClick={() => handleUpdateParcelStatus(p.id, 'LIVRE')}
-                                className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold text-[9px] px-2.5 py-1 rounded-lg shadow-xs cursor-pointer transition-all"
+                                className="bg-emerald-50 hover:bg-emerald-600 text-slate-950 font-extrabold text-[9px] px-2.5 py-1 rounded-lg shadow-xs cursor-pointer transition-all"
                               >
                                 Confirmer Retrait (Livré)
                               </button>

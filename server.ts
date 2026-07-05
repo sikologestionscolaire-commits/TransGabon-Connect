@@ -2009,6 +2009,148 @@ app.get('/api/bookings/:id/pdf', async (req, res) => {
   }
 });
 
+
+// ========================================================================
+// GENERATION DE MANIFESTE DE BORD OFFICIEL (A4 PORTRAIT)
+// ========================================================================
+app.get('/api/trips/:id/manifest/pdf', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const trip = await prisma.trip.findUnique({
+      where: { id },
+      include: { bookings: true }
+    });
+
+    if (!trip) {
+      return res.status(404).send("Voyage introuvable.");
+    }
+
+    // Filtrer les réservations pour ne prendre que les passagers confirmés (PAYÉS ou EMBARQUÉS)
+    const confirmedPassengers = trip.bookings.filter(b => b.status === 'PAYE' || b.status === 'EMBARQUE');
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=Manifeste_${trip.id}.pdf`);
+
+    // Initialisation du document PDF en format A4 Portrait (595.28 x 841.89)
+    const doc = new PDFDocument({ size: 'A4', layout: 'portrait', margin: 40 });
+    doc.pipe(res);
+
+    const width = 595.28;
+    const height = 841.89;
+
+    // 1. BANDEAU ET ENTÊTE DE SÉCURITÉ GABONAISE
+    doc.rect(0, 0, width, 80).fill('#0f172a');
+    doc.fillColor('#ffffff')
+       .fontSize(16)
+       .font('Helvetica-Bold')
+       .text("TRANSGABON CONNECT", 40, 20);
+    doc.fillColor('#38bdf8')
+       .fontSize(8)
+       .font('Helvetica-Bold')
+       .text("MINISTERE DES TRANSPORTS • MANIFESTE DE BORD OFFICIEL", 40, 42);
+
+    // Date du manifeste (à droite)
+    doc.fillColor('#94a3b8')
+       .fontSize(8)
+       .font('Helvetica')
+       .text(`Émis le : ${new Date().toLocaleDateString('fr-FR')}`, 400, 24, { align: 'right', width: 155 });
+    doc.text(`Réf Voyage : ${trip.id}`, 400, 38, { align: 'right', width: 155 });
+
+    // 2. DÉTAILS TECHNIQUES DU VOYAGE (Y: 100 à 180)
+    doc.roundedRect(40, 100, 515, 80, 8).fill('#f8fafc');
+    doc.roundedRect(40, 100, 515, 80, 8).lineWidth(1).stroke('#e2e8f0');
+
+    doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(14).text(`${trip.departure} ➔ ${trip.arrival}`, 55, 112);
+    
+    doc.fontSize(9).font('Helvetica');
+    doc.fillColor('#475569').text("Compagnie :", 55, 134);
+    doc.font('Helvetica-Bold').fillColor('#0f172a').text(trip.agencyName, 120, 134);
+
+    doc.font('Helvetica').fillColor('#475569');
+    doc.text("Départ le :", 55, 149);
+    doc.font('Helvetica-Bold').fillColor('#0f172a').text(new Date(trip.departureTime).toLocaleString('fr-FR'), 120, 149);
+
+    doc.font('Helvetica').fillColor('#475569').text("Bus N° :", 300, 115);
+    doc.font('Helvetica-Bold').fillColor('#0f172a').text(trip.busNumber, 350, 115);
+
+    doc.font('Helvetica').fillColor('#475569').text("Chauffeur :", 300, 134);
+    doc.font('Helvetica-Bold').fillColor('#0f172a').text(`${trip.driverName} (${trip.driverPhone})`, 360, 134);
+
+    doc.font('Helvetica').fillColor('#475569').text("Total à bord :", 300, 149);
+    doc.font('Helvetica-Bold').fillColor('#10b981').text(`${confirmedPassengers.length} passagers confirmés`, 370, 149);
+
+    // 3. TABLEAU DES PASSAGERS (Y: 200)
+    const tableTop = 200;
+    
+    // Entête du tableau
+    doc.rect(40, tableTop, 515, 24).fill('#0f172a');
+    doc.fillColor('#ffffff').fontSize(8.5).font('Helvetica-Bold');
+    doc.text("N°", 50, tableTop + 7, { width: 25 });
+    doc.text("Nom du Passager", 80, tableTop + 7, { width: 180 });
+    doc.text("N° CNI / Passeport", 270, tableTop + 7, { width: 100 });
+    doc.text("Téléphone", 380, tableTop + 7, { width: 90 });
+    doc.text("Siège", 480, tableTop + 7, { width: 35 });
+    doc.text("Statut", 520, tableTop + 7, { width: 35 });
+
+    let yPosition = tableTop + 24;
+
+    // Remplissage du tableau avec les passagers
+    if (confirmedPassengers.length === 0) {
+      doc.fillColor('#64748b').fontSize(10).font('Helvetica-Oblique').text("Aucun passager enregistré ou payé pour ce bus pour l'instant.", 40, yPosition + 20, { align: 'center', width: 515 });
+    } else {
+      confirmedPassengers.forEach((passenger, index) => {
+        // Alterne les couleurs de fond de ligne pour plus de lisibilité
+        const rowBg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+        doc.rect(40, yPosition, 515, 22).fill(rowBg);
+
+        // Ligne de bordure inférieure
+        doc.moveTo(40, yPosition + 22).lineTo(555, yPosition + 22).lineWidth(0.5).stroke('#cbd5e1');
+
+        doc.fillColor('#0f172a').fontSize(8.5).font('Helvetica');
+        doc.text((index + 1).toString(), 50, yPosition + 7, { width: 25 });
+        doc.font('Helvetica-Bold').text(passenger.travelerName, 80, yPosition + 7, { width: 180 });
+        doc.font('Helvetica').text(passenger.travelerCni, 270, yPosition + 7, { width: 100 });
+        doc.text(passenger.travelerPhone, 380, yPosition + 7, { width: 90 });
+        
+        // Siège en vert
+        doc.font('Helvetica-Bold').fillColor('#10b981').text(`N° ${passenger.seatNumber}`, 480, yPosition + 7, { width: 35 });
+        
+        // Statut
+        doc.fillColor('#334155').fontSize(7.5).text(passenger.status === 'EMBARQUE' ? 'EMBARQUE' : 'PAYE', 520, yPosition + 7, { width: 35 });
+
+        yPosition += 22;
+      });
+    }
+
+    // 4. EMBLACEMENT SIGNATURES ET CACHETS (En bas de page)
+    const signatureY = Math.max(yPosition + 30, height - 130);
+    
+    doc.rect(40, signatureY, 515, 80).fill('#f8fafc');
+    doc.rect(40, signatureY, 515, 80).lineWidth(1).stroke('#e2e8f0');
+
+    doc.fillColor('#475569').fontSize(8).font('Helvetica-Bold');
+    doc.text("VISA ET CACHET DE L'AGENCE", 60, signatureY + 15);
+    doc.text("CONTROLE DE SECURITE ROUTIERE (Gendarmerie)", 320, signatureY + 15);
+
+    doc.fillColor('#94a3b8').fontSize(7).font('Helvetica-Oblique');
+    doc.text("Signature du Chef de Gare", 60, signatureY + 55);
+    doc.text("Visa de l'autorité de contrôle", 320, signatureY + 55);
+
+    // Pied de page légal
+    doc.fillColor('#64748b')
+       .fontSize(7)
+       .font('Helvetica')
+       .text("Document officiel certifié par TransGabon Connect. La falsification de ce manifeste est punie par la loi en vigueur.", 40, height - 30, { align: 'center', width: 515 });
+
+    doc.end();
+
+  } catch (error: any) {
+    console.error("[PDF ERROR] Impossible de générer le manifeste :", error);
+    res.status(500).send("Erreur serveur lors de la génération du manifeste.");
+  }
+});
+
 // À ajouter dans votre code serveur Express (sans authenticateToken)
 app.get('/api/parcels/track/:id', async (req, res) => {
   const { id } = req.params;
