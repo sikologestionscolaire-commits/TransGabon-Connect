@@ -1946,6 +1946,48 @@ app.get('/api/parcels/track/:id', async (req, res) => {
   }
 });
 
+// =====================================================================
+// ENPOINT PUBLIC : Suivi et récupération de billet par le voyageur (SÉCURISÉ)
+// =====================================================================
+app.get('/api/bookings/track/:id', async (req, res) => {
+  const { id } = req.params;
+  const { phone } = req.query;
+
+  if (!id || !phone) {
+    return res.status(400).json({ success: false, message: "Code de billet et numéro de téléphone requis." });
+  }
+
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id },
+      include: { trip: true }
+    });
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Billet introuvable dans le système national." });
+    }
+
+    // Mesure de sécurité : On nettoie et compare les numéros de téléphone pour éviter l'espionnage
+    const cleanPhone = (phone as string).replace(/\D/g, '');
+    const cleanBookingPhone = booking.travelerPhone.replace(/\D/g, '');
+
+    // On vérifie si la fin des numéros correspond (gère les formats 077, +241, 066 etc.)
+    if (!cleanBookingPhone.endsWith(cleanPhone) && !cleanPhone.endsWith(cleanBookingPhone)) {
+      return res.status(403).json({ success: false, message: "Le numéro de téléphone ne correspond pas à ce billet." });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...booking,
+        tripDetails: formatTrip(booking.trip)
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: "Erreur lors de la récupération du billet.", error: error.message });
+  }
+});
+
 // Récupérer les utilisateurs de l'agence (Réservé au rôle CHEF)
 app.get('/api/agency/users', authenticateToken, async (req, res) => {
   if (req.user.role !== 'agency' || req.user.subRole !== 'CHEF') {

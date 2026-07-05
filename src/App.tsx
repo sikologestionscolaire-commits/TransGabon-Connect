@@ -7,7 +7,7 @@ import SuperAdmin from './components/SuperAdmin';
 import ApiSandbox from './components/ApiSandbox';
 import { 
   Bus, Smartphone, QrCode, Terminal, HelpCircle, Layers, 
-  LogOut, Lock, Menu, ChevronUp 
+  LogOut, Lock, Menu, ChevronUp, Search, Download, X 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -33,6 +33,14 @@ export default function App() {
   const [tariffs, setTariffs] = useState<Tariff[]>([]);
   const [loading, setLoading] = useState(true);
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('token'));
+
+  // NOUVEAUX ÉTATS POUR LE SUIVI DE BILLET PUBLIC
+  const [isTrackingOpen, setIsTrackingOpen] = useState(false);
+  const [trackTicketId, setTrackTicketId] = useState('');
+  const [trackPhone, setTrackPhone] = useState('');
+  const [trackingResult, setTrackingResult] = useState<any | null>(null);
+  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [trackingError, setTrackingError] = useState('');
 
   // Récupération initiale des données de l'Express backend
   const fetchData = async () => {
@@ -83,6 +91,31 @@ export default function App() {
       console.error("Error communicating with full-stack Express server:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // RESTREINT ET RECHERCHE LE TICKET PUBLIC SANS AUTHENTIFICATION
+  const handleTrackTicket = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setTrackingError('');
+    setTrackingResult(null);
+    setTrackingLoading(true);
+
+    try {
+      const cleanId = trackTicketId.trim().toUpperCase();
+      const cleanPhone = trackPhone.trim();
+      const res = await fetch(`/api/bookings/track/${cleanId}?phone=${encodeURIComponent(cleanPhone)}`);
+      const data = await res.json();
+
+      if (data.success) {
+        setTrackingResult(data.data);
+      } else {
+        setTrackingError(data.message || "Billet introuvable ou numéro de téléphone incorrect.");
+      }
+    } catch (err) {
+      setTrackingError("Impossible de se connecter à la centrale de réservation.");
+    } finally {
+      setTrackingLoading(false);
     }
   };
 
@@ -427,13 +460,28 @@ export default function App() {
       </AnimatePresence>
 
       {/* 3. GUIDE TEXTE ÉDUCATIF COMPACT */}
-      <div className="bg-white border-b border-slate-200 px-6 py-2.5 text-[11px] text-slate-600 flex flex-col md:flex-row items-center justify-between gap-2 shadow-sm text-left">
+      <div className="bg-white border-b border-slate-200 px-6 py-2.5 text-[11px] text-slate-600 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm text-left">
         <div className="flex items-center space-x-2">
           <HelpCircle className="w-4 h-4 text-emerald-600 shrink-0" />
           <p>
             💡 <strong>Guide de l'Écosystème :</strong> Réservez un billet sur l'<strong>Apli Voyageur</strong> (Paiement simulé), puis validez-le instantanément sur l'<strong>Apli Embarquement</strong> pour simuler le terrain !
           </p>
         </div>
+
+        {/* NOUVEAU BOUTON DE SUIVI PUBLIC DE BILLET */}
+        <button
+          onClick={() => {
+            setTrackingResult(null);
+            setTrackingError('');
+            setTrackTicketId('');
+            setTrackPhone('');
+            setIsTrackingOpen(true);
+          }}
+          className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 text-xs shadow-md shrink-0 border border-emerald-600/20"
+        >
+          <Search className="w-3.5 h-3.5" />
+          <span>Suivre / Imprimer mon Billet</span>
+        </button>
       </div>
 
       {/* CORE PORTAL VIEWER STAGE */}
@@ -676,10 +724,186 @@ export default function App() {
         )}
       </main>
 
+      {/* NOUVELLE MODALE INTERACTIVE : SUIVI & IMPRESSION DU BILLET VOYAGEUR */}
+      <AnimatePresence>
+        {isTrackingOpen && (
+          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden text-left flex flex-col max-h-[90vh]"
+            >
+              {/* Entête de la Modale */}
+              <div className="bg-slate-950 text-white p-5 flex justify-between items-center">
+                <div className="flex items-center space-x-2.5">
+                  <div className="p-2 bg-slate-800 text-emerald-400 rounded-xl">
+                    <QrCode className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-sm text-white">Suivi et Impression de Billet</h3>
+                    <p className="text-[10px] text-slate-400">Centrale Nationale de Transport du Gabon</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsTrackingOpen(false)}
+                  className="p-1.5 hover:bg-slate-800 rounded-xl transition-all cursor-pointer text-slate-400 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 overflow-y-auto space-y-5">
+                {/* Formulaire de Recherche */}
+                <form onSubmit={handleTrackTicket} className="bg-slate-50 p-4 border border-slate-200 rounded-2xl space-y-3">
+                  <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Identifiants de Recherche</span>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-700">Code du Billet :</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: TX-GAB-1029"
+                        required
+                        className="w-full text-xs p-2.5 border border-slate-200 bg-white rounded-xl outline-none focus:border-emerald-500 transition-all font-mono uppercase"
+                        value={trackTicketId}
+                        onChange={(e) => setTrackTicketId(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-700">Téléphone de l'acheteur :</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: 077291104"
+                        required
+                        className="w-full text-xs p-2.5 border border-slate-200 bg-white rounded-xl outline-none focus:border-emerald-500 transition-all font-mono"
+                        value={trackPhone}
+                        onChange={(e) => setTrackPhone(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={trackingLoading}
+                    className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center space-x-2 shadow-sm disabled:opacity-50"
+                  >
+                    <Search className="w-4 h-4 text-emerald-400" />
+                    <span>{trackingLoading ? "Recherche en cours..." : "Rechercher mon Billet"}</span>
+                  </button>
+                </form>
+
+                {/* Zone des erreurs */}
+                {trackingError && (
+                  <div className="p-3 bg-red-50 border border-red-100 text-red-600 text-xs rounded-xl font-semibold">
+                    ⚠️ {trackingError}
+                  </div>
+                )}
+
+                {/* Affichage des Résultats */}
+                {trackingResult && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-4 animate-fade-in text-slate-800"
+                  >
+                    {/* Badge de Statut */}
+                    <div className="flex justify-between items-center bg-slate-100 p-3 rounded-2xl border border-slate-200">
+                      <div>
+                        <span className="text-[10px] text-slate-500 font-bold block">Référence Billet</span>
+                        <strong className="font-mono text-xs text-slate-900">{trackingResult.id}</strong>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] text-slate-500 font-bold block">État de l'Embarquement</span>
+                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                          trackingResult.status === 'EMBARQUE' 
+                            ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/25' 
+                            : trackingResult.status === 'PAYE'
+                            ? 'bg-blue-500/10 text-blue-500 border border-blue-500/25'
+                            : 'bg-amber-500/10 text-amber-500 border border-amber-500/25'
+                        }`}>
+                          {trackingResult.status}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Informations du Trajet */}
+                    <div className="border border-slate-200 rounded-2xl p-4 space-y-3.5">
+                      <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider block border-b border-slate-100 pb-1">Détails de l'Itinéraire</span>
+                      
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <span className="text-[10px] text-slate-500 block">Compagnie de Transport</span>
+                          <strong className="text-slate-800">{trackingResult.tripDetails?.agencyName || "Partenaire National"}</strong>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 block">Bus & Siège</span>
+                          <strong className="text-slate-800">N° {trackingResult.tripDetails?.busNumber || "N/A"} • Siège N° {trackingResult.seatNumber}</strong>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 block">Ligne / Trajet</span>
+                          <strong className="text-slate-800">{trackingResult.tripDetails?.departure} ➔ {trackingResult.tripDetails?.arrival}</strong>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 block">Date & Heure de Départ</span>
+                          <strong className="text-slate-800">
+                            {trackingResult.tripDetails?.departureTime ? new Date(trackingResult.tripDetails.departureTime).toLocaleString('fr-FR') : "À définir"}
+                          </strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Informations Passager */}
+                    <div className="border border-slate-200 rounded-2xl p-4 space-y-3.5">
+                      <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider block border-b border-slate-100 pb-1">Passager & Sécurité</span>
+                      
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <span className="text-[10px] text-slate-500 block">Nom complet</span>
+                          <strong className="text-slate-800">{trackingResult.travelerName}</strong>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 block">N° CNI / Passeport</span>
+                          <strong className="text-slate-800 font-mono">{trackingResult.travelerCni}</strong>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 block">Mode de Paiement</span>
+                          <strong className="text-slate-800">{trackingResult.paymentMethod?.replace('_', ' ') || "En Agence"}</strong>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 block">Prix du Billet</span>
+                          <strong className="text-emerald-600 font-extrabold">{trackingResult.amount?.toLocaleString()} FCFA</strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Rappel de Sécurité Checkpoint */}
+                    <p className="text-[10px] text-amber-700 bg-amber-50 p-3 rounded-xl border border-amber-200/50 leading-relaxed font-semibold">
+                      ⚠️ RAPPEL DE SÉCURITÉ : La CNI ou le Passeport en cours de validité est OBLIGATOIRE aux checkpoints d'embarquement et de contrôle (Kango, Bifoun, Alembe, Ndjolé, etc.).
+                    </p>
+
+                    {/* Bouton de Téléchargement PDF */}
+                    <a
+                      href={`/api/bookings/${trackingResult.id}/pdf`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold rounded-2xl flex items-center justify-center space-x-2.5 text-xs transition-all shadow-lg text-center cursor-pointer"
+                    >
+                      <Download className="w-4 h-4 text-slate-950" />
+                      <span>Télécharger / Imprimer mon Billet (PDF)</span>
+                    </a>
+                  </motion.div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* FOOTER BRUTALIST & MINIMAL */}
       <footer className="bg-white border-t border-slate-200 py-6 text-center text-[10px] text-slate-500 mt-12 space-y-1">
         <p>© 2026 TransGabon Connect • Tous droits réservés.</p>
-        <p>Conçu spécifiquement pour la numérisation et la structuration économique des gences de voyage du Gabon.</p>
+        <p>Conçu spécifiquement pour la numérisation et la structuration économique des agences de voyage du Gabon.</p>
       </footer>
 
     </div>
